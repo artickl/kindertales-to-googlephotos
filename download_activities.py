@@ -183,6 +183,11 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def log(debug: bool, message: str) -> None:
+    if debug:
+        print(message)
+
+
 def parse_set_location(value: str) -> tuple[float, float]:
     parts = [p.strip() for p in value.split(",")]
     if len(parts) != 2:
@@ -250,6 +255,7 @@ def iter_downloads(
     exif_location: tuple[float, float] | None,
     overwrite: bool,
     dry_run: bool,
+    debug: bool,
 ) -> tuple[int, int]:
     ok = 0
     failed = 0
@@ -266,7 +272,7 @@ def iter_downloads(
             target = out_dir / filename
 
             if target.exists() and not overwrite:
-                print(f"SKIP existing: {target}")
+                log(debug, f"SKIP existing: {target}")
                 ok += 1
                 continue
 
@@ -276,14 +282,14 @@ def iter_downloads(
             if exif_datetime is not None:
                 updated = apply_exif_metadata(target, exif_datetime, exif_location)
                 if updated:
-                    print(f"EXIF UPDATED: {target}")
+                    log(debug, f"EXIF UPDATED: {target}")
                 else:
-                    print(f"EXIF SKIP (unsupported format): {target}")
+                    log(debug, f"EXIF SKIP (unsupported format): {target}")
 
-            print(f"DOWNLOADED {target} ({len(data)} bytes)")
+            log(debug, f"DOWNLOADED {target} ({len(data)} bytes)")
             ok += 1
-        except Exception as exc:  # noqa: BLE001
-            print(f"FAILED {idx:03d}: {url}\n  reason: {exc}", file=sys.stderr)
+        except Exception as exc:
+            print(f"FAILED {idx:03d}: {url}\n  reason: {exc}")
             failed += 1
 
     return ok, failed
@@ -323,6 +329,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing files")
     parser.add_argument("--dry-run", action="store_true", help="Only list links; do not download")
+    parser.add_argument("--debug", action="store_true", help="Enable verbose debug output")
     return parser.parse_args()
 
 
@@ -333,7 +340,7 @@ def main() -> int:
         report_date = parse_report_date(args.date)
         cookie = load_cookie_header(args)
     except Exception as exc:
-        print(f"CONFIG ERROR: {exc}", file=sys.stderr)
+        print(f"CONFIG ERROR: {exc}")
         return 2
 
     page_url = build_daily_report_url(args.base_url, args.cid, report_date)
@@ -351,7 +358,7 @@ def main() -> int:
         try:
             exif_location = parse_set_location(args.set_location)
         except ValueError as exc:
-            print(f"CONFIG ERROR: {exc}", file=sys.stderr)
+            print(f"CONFIG ERROR: {exc}")
             return 2
         if exif_datetime is None:
             exif_datetime = report_datetime
@@ -361,19 +368,18 @@ def main() -> int:
             subprocess.run(["exiftool", "-ver"], check=True, capture_output=True, text=True)
         except FileNotFoundError:
             print(
-                "CONFIG ERROR: exiftool is required for EXIF writing. Install exiftool and retry.",
-                file=sys.stderr,
+                "CONFIG ERROR: exiftool is required for EXIF writing. Install exiftool and retry."
             )
             return 2
         except subprocess.CalledProcessError as exc:
-            print(f"CONFIG ERROR: failed to run exiftool: {exc}", file=sys.stderr)
+            print(f"CONFIG ERROR: failed to run exiftool: {exc}")
             return 2
 
     print(f"Fetching report page: {page_url}")
     try:
         html = fetch_text(page_url, cookie, args.user_agent, args.timeout)
-    except Exception as exc:  # noqa: BLE001
-        print(f"FETCH ERROR: {exc}", file=sys.stderr)
+    except Exception as exc:
+        print(f"FETCH ERROR: {exc}")
         return 1
 
     urls = extract_gallery_hrefs(html, page_url)
@@ -395,6 +401,7 @@ def main() -> int:
         exif_location=exif_location,
         overwrite=args.overwrite,
         dry_run=args.dry_run,
+        debug=args.debug,
     )
 
     print(f"Done. Success: {ok}, Failed: {failed}, Folder: {output_dir}")

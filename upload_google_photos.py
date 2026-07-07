@@ -29,15 +29,14 @@ try:
     from google_auth_oauthlib.flow import InstalledAppFlow
 except ImportError as exc:
     print(
-        "Missing dependency. Install with: pip install google-auth google-auth-oauthlib",
-        file=sys.stderr,
+        "Missing dependency. Install with: pip install google-auth google-auth-oauthlib"
     )
     raise SystemExit(2) from exc
 
 try:
     import requests
 except ImportError as exc:  # pragma: no cover
-    print("Missing dependency. Install with: pip install requests", file=sys.stderr)
+    print("Missing dependency. Install with: pip install requests")
     raise SystemExit(2) from exc
 
 SCOPE = ["https://www.googleapis.com/auth/photoslibrary.appendonly"]
@@ -54,6 +53,11 @@ ALLOWED_EXTENSIONS = {
     ".heif",
 }
 METADATA_DATE_EXTENSIONS = {".jpg", ".jpeg", ".heic", ".heif", ".tif", ".tiff"}
+
+
+def log(debug: bool, message: str) -> None:
+    if debug:
+        print(message)
 
 
 def parse_args() -> argparse.Namespace:
@@ -92,6 +96,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Set GPS EXIF location before upload as lat,lon (example: 49.2827,-123.1207)",
     )
+    parser.add_argument("--debug", action="store_true", help="Enable verbose debug output")
     return parser.parse_args()
 
 
@@ -287,7 +292,7 @@ def main() -> int:
     try:
         files = collect_files(args.file, args.folder, args.recursive)
     except Exception as exc:
-        print(f"INPUT ERROR: {exc}", file=sys.stderr)
+        print(f"INPUT ERROR: {exc}")
         return 2
 
     if not files:
@@ -296,7 +301,7 @@ def main() -> int:
 
     print(f"Found {len(files)} image(s)")
     for path in files:
-        print(f" - {path}")
+        log(args.debug, f" - {path}")
 
     if args.dry_run:
         print("Dry run enabled. Exiting without upload.")
@@ -308,7 +313,7 @@ def main() -> int:
         try:
             set_date_dt = parse_set_date(args.set_date)
         except ValueError as exc:
-            print(f"INPUT ERROR: {exc}", file=sys.stderr)
+            print(f"INPUT ERROR: {exc}")
             return 2
 
         try:
@@ -320,14 +325,14 @@ def main() -> int:
             )
             return 2
         except subprocess.CalledProcessError as exc:
-            print(f"INPUT ERROR: failed to run exiftool: {exc}", file=sys.stderr)
+            print(f"INPUT ERROR: failed to run exiftool: {exc}")
             return 2
 
     if args.set_location:
         try:
             set_location = parse_set_location(args.set_location)
         except ValueError as exc:
-            print(f"INPUT ERROR: {exc}", file=sys.stderr)
+            print(f"INPUT ERROR: {exc}")
             return 2
 
         try:
@@ -339,7 +344,7 @@ def main() -> int:
             )
             return 2
         except subprocess.CalledProcessError as exc:
-            print(f"INPUT ERROR: failed to run exiftool: {exc}", file=sys.stderr)
+            print(f"INPUT ERROR: failed to run exiftool: {exc}")
             return 2
 
     client_secret = Path(args.client_secret).expanduser().resolve()
@@ -348,7 +353,7 @@ def main() -> int:
     try:
         creds = get_credentials(client_secret, token_file)
     except Exception as exc:
-        print(f"AUTH ERROR: {exc}", file=sys.stderr)
+        print(f"AUTH ERROR: {exc}")
         return 1
 
     upload_tokens: list[tuple[Path, str]] = []
@@ -359,26 +364,26 @@ def main() -> int:
             if set_date_dt is not None:
                 updated = apply_metadata_date(file_path, set_date_dt)
                 if updated:
-                    print(f"SET DATE {idx:03d}/{len(files)}: {file_path.name}")
+                    log(args.debug, f"SET DATE {idx:03d}/{len(files)}: {file_path.name}")
                 else:
-                    print(
+                    log(
+                        args.debug,
                         f"SET DATE SKIP {idx:03d}/{len(files)}: {file_path.name} (unsupported format)",
-                        file=sys.stderr,
                     )
 
             if set_location is not None:
                 updated_location = apply_metadata_location(file_path, set_location[0], set_location[1])
                 if updated_location:
-                    print(f"SET LOCATION {idx:03d}/{len(files)}: {file_path.name}")
+                    log(args.debug, f"SET LOCATION {idx:03d}/{len(files)}: {file_path.name}")
                 else:
-                    print(
+                    log(
+                        args.debug,
                         f"SET LOCATION SKIP {idx:03d}/{len(files)}: {file_path.name} (unsupported format)",
-                        file=sys.stderr,
                     )
 
             token = upload_bytes(creds, file_path)
             upload_tokens.append((file_path, token))
-            print(f"UPLOADED BYTES {idx:03d}/{len(files)}: {file_path.name}")
+            log(args.debug, f"UPLOADED BYTES {idx:03d}/{len(files)}: {file_path.name}")
         except subprocess.CalledProcessError as exc:
             failed += 1
             stderr = (exc.stderr or "").strip()
@@ -388,7 +393,7 @@ def main() -> int:
             )
         except Exception as exc:
             failed += 1
-            print(f"UPLOAD FAILED: {file_path}\n  reason: {exc}", file=sys.stderr)
+            print(f"UPLOAD FAILED: {file_path}\n  reason: {exc}")
 
     created = 0
     create_failed = 0
@@ -398,7 +403,7 @@ def main() -> int:
             results = batch_create_media_items(creds, token_chunk)
         except Exception as exc:
             create_failed += len(token_chunk)
-            print(f"BATCH CREATE FAILED for {len(token_chunk)} item(s): {exc}", file=sys.stderr)
+            print(f"BATCH CREATE FAILED for {len(token_chunk)} item(s): {exc}")
             continue
 
         file_by_name = {path.name: path for path, _ in token_chunk}
@@ -413,11 +418,11 @@ def main() -> int:
 
             if message == "Success":
                 created += 1
-                print(f"CREATED: {label}")
+                log(args.debug, f"CREATED: {label}")
             else:
                 create_failed += 1
                 status_json = json.dumps(status, ensure_ascii=True)
-                print(f"CREATE FAILED: {label} status={status_json}", file=sys.stderr)
+                print(f"CREATE FAILED: {label} status={status_json}")
 
     print(
         "Done. "
