@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
             CID="$2"
             shift 2
             ;;
-        --location)
+        --set-location)
             LOCATION="$2"
             shift 2
             ;;
@@ -135,9 +135,26 @@ for i in $(seq "$START_DAY" "$END_DAY"); do
     fi
 
     "${download_cmd[@]}"
+    download_exit_code=$?
+
+    if [[ "$download_exit_code" -eq 1 ]]; then
+        echo "ERROR: No images for $MONTH/$DAY/$YEAR."
+        echo "Skipping upload."
+        continue
+    fi
+
+    if [[ "$download_exit_code" -eq 2 ]]; then
+        echo "ERROR: Was not able to access $MONTH/$DAY/$YEAR."
+        echo "Stopping batch run."
+        exit "$download_exit_code"
+    fi
 
     echo "Uploading activities for $MONTH/$DAY/$YEAR"
-    "${upload_cmd[@]}"
+    if ! "${upload_cmd[@]}"; then
+        echo "Upload failed for $MONTH/$DAY/$YEAR. Continuing to next day."
+        echo -e "=============================================================\n"
+        continue
+    fi
 
     echo -e "=============================================================\n"
 done

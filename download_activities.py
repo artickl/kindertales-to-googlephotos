@@ -33,6 +33,15 @@ DEFAULT_USER_AGENT = (
 EXIF_WRITABLE_EXTENSIONS = {".jpg", ".jpeg", ".heic", ".heif", ".tif", ".tiff"}
 
 
+class CookieExpiredError(RuntimeError):
+    """Raised when KinderTales redirects to login due to expired/invalid cookies."""
+
+
+def is_login_redirect(url: str) -> bool:
+    host = urlsplit(url).netloc.lower()
+    return host == "login.kindertales.com"
+
+
 class GalleryHrefParser(HTMLParser):
     """Collect href values from anchor tags inside div#gallery_content."""
 
@@ -117,6 +126,11 @@ def fetch_text(url: str, cookie: str, user_agent: str, timeout: int) -> str:
         },
     )
     with urlopen(req, timeout=timeout) as resp:
+        final_url = resp.geturl()
+        if is_login_redirect(final_url):
+            raise CookieExpiredError(
+                "Cookies need to be updated (redirected to login.kindertales.com)."
+            )
         content_type = resp.headers.get("Content-Type", "")
         charset = "utf-8"
         match = re.search(r"charset=([\w\-]+)", content_type, re.IGNORECASE)
@@ -176,6 +190,11 @@ def download_binary(url: str, cookie: str, user_agent: str, timeout: int) -> tup
         },
     )
     with urlopen(req, timeout=timeout) as resp:
+        final_url = resp.geturl()
+        if is_login_redirect(final_url):
+            raise CookieExpiredError(
+                "Cookies need to be updated (redirected to login.kindertales.com)."
+            )
         return resp.read(), resp.headers.get("Content-Type", "")
 
 
@@ -288,6 +307,8 @@ def iter_downloads(
 
             log(debug, f"DOWNLOADED {target} ({len(data)} bytes)")
             ok += 1
+        except CookieExpiredError:
+            raise
         except Exception as exc:
             print(f"FAILED {idx:03d}: {url}\n  reason: {exc}")
             failed += 1
@@ -378,6 +399,9 @@ def main() -> int:
     print(f"Fetching report page: {page_url}")
     try:
         html = fetch_text(page_url, cookie, args.user_agent, args.timeout)
+    except CookieExpiredError as exc:
+        print(f"AUTH ERROR: {exc}")
+        return 2
     except Exception as exc:
         print(f"FETCH ERROR: {exc}")
         return 1
@@ -390,19 +414,24 @@ def main() -> int:
         return 1
 
     ensure_dir(output_dir)
-    ok, failed = iter_downloads(
-        urls=urls,
-        out_dir=output_dir,
-        cookie=cookie,
-        user_agent=args.user_agent,
-        timeout=args.timeout,
-        file_timestamp=report_timestamp,
-        exif_datetime=exif_datetime,
-        exif_location=exif_location,
-        overwrite=args.overwrite,
-        dry_run=args.dry_run,
-        debug=args.debug,
-    )
+    try:
+        ok, failed = iter_downloads(
+            urls=urls,
+            out_dir=output_dir,
+            cookie=cookie,
+            user_agent=args.user_agent,
+            timeout=args.timeout,
+            file_timestamp=report_timestamp,
+            exif_datetime=exif_datetime,
+            exif_location=exif_location,
+            overwrite=args.overwrite,
+            dry_run=args.dry_run,
+            debug=args.debug,
+        )
+    except CookieExpiredError as exc:
+        print(f"AUTH ERROR: {exc}")
+        return 2
+
 
     print(f"Done. Success: {ok}, Failed: {failed}, Folder: {output_dir}")
     return 0 if failed == 0 else 1
