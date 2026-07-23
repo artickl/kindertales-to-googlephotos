@@ -138,14 +138,16 @@ for i in $(seq "$START_DAY" "$END_DAY"); do
     download_exit_code=$?
 
     if [[ "$download_exit_code" -eq 1 ]]; then
-        echo "ERROR: No images for $MONTH/$DAY/$YEAR."
+        echo "INFO: No images for $MONTH/$DAY/$YEAR."
         echo "Skipping upload."
+        echo -e "=============================================================\n"
         continue
     fi
 
     if [[ "$download_exit_code" -eq 2 ]]; then
         echo "ERROR: Was not able to access $MONTH/$DAY/$YEAR."
         echo "Stopping batch run."
+        echo -e "=============================================================\n"
         exit "$download_exit_code"
     fi
 
