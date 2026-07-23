@@ -1,7 +1,7 @@
 # KinderTales Photo Backup to Google Photos
 
-This project helps parents export daily photos from KinderTales which is used by CEFA daycare and upload them
-to Google Photos with corrected metadata.
+This project helps parents export daily photos from KinderTales (<http://kindertales.com/>), 
+which is used by CEFA daycare, and upload them to Google Photos with corrected metadata.
 
 At CEFA daycare, KinderTales provides daily photo updates for each child. Two practical challenges appear when you want to
 build a clean Google Photos timeline:
@@ -16,7 +16,7 @@ This repository includes scripts to solve that.
 1. `download_activities.py`
    - Downloads all full-resolution activity images for one date from KinderTales.
    - Saves them under `downloads/YYYY-MM-DD/`.
-   - Fixing EXIF date to match downloaded date and optional can fix EXIF GPS location.
+   - Fixes the EXIF date to match the downloaded date, and optionally fixes the EXIF GPS location.
 
 2. `upload_google_photos.py`
    - Uploads one image or a folder of images to Google Photos.
@@ -24,7 +24,7 @@ This repository includes scripts to solve that.
 
 3. `download-upload-batch.sh`
    - Combines download + upload.
-   - Default behavior: process yesterday only.
+   - Default behaviour: process yesterday only.
    - If `--month` and/or `--year` are provided without `--day`, it processes the full month.
    - If `--day` is provided, it processes only that day.
 
@@ -72,8 +72,8 @@ name1=value1; name2=value2; name3=value3
 Ways to get it:
 
 1. Chrome DevTools
-   - Open KinderTales page while logged in.
-   - Open Network tab, reload page, click the main document request.
+   - Open the KinderTales page while logged in.
+   - Open the Network tab, reload the page, and click the main document request.
    - Copy the `Cookie` request header value (without the `Cookie:` prefix).
    - Save to `cookie.txt`.
 
@@ -95,11 +95,11 @@ Notes:
 
 1. In Google Cloud Console, enable Google Photos Library API.
 2. Create OAuth client credentials for a Desktop app.
-3. Download JSON credentials and save as `google_client_secret.json` in this project root.
+3. Download JSON credentials and save as `google_client_secret.json` in the project root.
 
 ### 3) Generate `google_photos_token.json`
 
-Run `upload_google_photos.py` once. It opens browser OAuth flow and saves token locally.
+Run `upload_google_photos.py` once. It opens the browser OAuth flow and saves the token locally.
 
 Example:
 
@@ -211,20 +211,20 @@ exiftool downloads/2026-06-01/*.jpg | grep -E "Date/Time Original|GPS Latitude|G
 
 ## Troubleshooting
 
-- `CONFIG ERROR: No cookie found`
+- `CONFIG ERROR: No cookie found.`
   - Provide `--cookie-file` or set `KINDERTALES_COOKIE`.
 
 - `FETCH ERROR` from KinderTales
   - Cookie is expired/invalid or CID/date has no data.
 
-- `No gallery links found`
+- `No gallery links found.`
   - No photos for that day, not authenticated, or page structure changed.
 
 - `AUTH ERROR` in Google uploader
   - Check `google_client_secret.json` and OAuth setup.
 
-- `exiftool is required`
-  - Install exiftool package.
+- `exiftool is required.`
+  - Install the exiftool package.
 
 ## Privacy Notes
 
