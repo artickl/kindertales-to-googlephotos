@@ -51,6 +51,7 @@ ALLOWED_EXTENSIONS = {
     ".webp",
     ".heic",
     ".heif",
+    ".mp4"
 }
 METADATA_DATE_EXTENSIONS = {".jpg", ".jpeg", ".heic", ".heif", ".tif", ".tiff"}
 
